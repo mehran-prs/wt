@@ -41,6 +41,14 @@ Details:
   `~/wt/<alias>-<branch>`).
 
 
+### Print the base worktrees directory
+
+```sh
+wt path
+```
+
+Prints `$WT_WORKTREE_DIR` (default `~/wt`) to stdout.
+
 ### Forget an alias
 
 `wt` keeps a small local cache of repos you've used before, each under a
@@ -62,8 +70,9 @@ left untouched — that's on you to clean up.
 
 ## Shell completion
 
-`wt` supports alias and command completion. Generate a script for your shell
-and source it, e.g. for zsh:
+`wt` supports alias, branch, and command completion (branches complete once
+the first argument is a cached alias). Generate a script for your shell and
+source it, e.g. for zsh:
 
 ```sh
 wt completion zsh > "${fpath[1]}/_wt"

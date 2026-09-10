@@ -18,14 +18,26 @@ var newCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	RunE:  runNew,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
 		s, err := store.Load()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveError
 		}
-		return s.Aliases(), cobra.ShellCompDirectiveNoFileComp
+		switch len(args) {
+		case 0:
+			return s.Aliases(), cobra.ShellCompDirectiveNoFileComp
+		case 1:
+			repo, ok := s.Repos[args[0]]
+			if !ok {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			branches, err := gitrepo.ListBranches(repo.Clone)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return branches, cobra.ShellCompDirectiveNoFileComp
+		default:
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
 	},
 }
 
@@ -166,6 +178,24 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	baseDir, err := worktreeBaseDir()
+	if err != nil {
+		return err
+	}
+	worktreePath := filepath.Join(baseDir, repo.Alias+"-"+branch)
+
+	got, exists, err := gitrepo.ExistingWorktree(repo.Clone, worktreePath)
+	if err != nil {
+		return err
+	}
+	if exists {
+		if got != branch {
+			return fmt.Errorf("%s already exists as a worktree on branch %q, not %q", worktreePath, got, branch)
+		}
+		fmt.Println(worktreePath)
+		return nil
+	}
+
 	fmt.Fprintln(os.Stderr, "Detecting primary branch...")
 	primary, err := gitrepo.PrimaryBranch(repo.Clone)
 	if err != nil {
@@ -176,12 +206,6 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if err := gitrepo.UpdatePrimary(repo.Clone, primary); err != nil {
 		return err
 	}
-
-	baseDir, err := worktreeBaseDir()
-	if err != nil {
-		return err
-	}
-	worktreePath := filepath.Join(baseDir, repo.Alias+"-"+branch)
 
 	fmt.Fprintf(os.Stderr, "Creating worktree at %s...\n", worktreePath)
 	if err := gitrepo.AddWorktree(repo.Clone, worktreePath, branch, primary); err != nil {
