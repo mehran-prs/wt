@@ -46,14 +46,19 @@ func init() {
 }
 
 func worktreeBaseDir() (string, error) {
-	if d := os.Getenv("WT_WORKTREE_DIR"); d != "" {
-		return d, nil
-	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, "wt"), nil
+
+	d := os.Getenv("WT_WORKTREE_DIR")
+	if d == "" {
+		return filepath.Join(home, "wt"), nil
+	}
+	if d == "~" || strings.HasPrefix(d, "~/") {
+		d = filepath.Join(home, strings.TrimPrefix(d, "~"))
+	}
+	return filepath.Abs(d)
 }
 
 func looksLikePath(s string) bool {
